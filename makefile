@@ -13,7 +13,6 @@ COMMON_FLAGS = -pipe \
 	       -Wmissing-field-initializers \
 	       -Wmissing-format-attribute \
 	       -Wmissing-include-dirs \
-	       -Wmissing-noreturn \
 	       -Wnormalized=nfc \
 	       -Woverlength-strings \
 	       -Wpacked \
