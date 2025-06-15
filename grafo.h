@@ -4,9 +4,37 @@
 #include <stdio.h>
 
 //------------------------------------------------------------------------------
+// máximo de caracteres em uma linha da entrada de dados
+#define MAX_LINHA 2047
+
+typedef struct vizinho {
+    struct vertice *v;
+    struct vizinho *proximo;
+    int peso;
+} vizinho;
+
+//------------------------------------------------------------------------------
+// estrutura de dados para representar um vértice de um grafo
+
+typedef struct vertice {
+    char *nome;
+    vizinho *vizinhos;
+    struct vertice *proximo;
+    int visitado;
+    int cor;
+    int discovery, low, parent;
+} vertice;
+
+
+//------------------------------------------------------------------------------
 // estrutura de dados para representar um grafo
 
-typedef struct grafo grafo;
+typedef struct grafo {
+    char *nome;
+    vertice *vertices;
+    int n_vertices;
+    int n_arestas;
+} grafo;
 
 //------------------------------------------------------------------------------
 // lê um grafo de f e o devolve
