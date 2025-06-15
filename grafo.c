@@ -22,12 +22,8 @@ static vertice *adiciona_vertice(grafo *g, const char *nome) {
     if (v) return v;
 
     v = malloc(sizeof(vertice));
-    v->nome = strdup(nome);
-    if (v->nome == NULL) {
-        perror("Erro fatal: Falha ao alocar memoria para o nome do vertice");
-        free(v); // Libera o vértice alocado para evitar leak imediato
-        exit(EXIT_FAILURE); // Aborta o programa
-    }
+    v->nome = (char *)malloc(strlen(nome) + 1);
+    strcpy(v->nome, nome);
     v->vizinhos = NULL;
     v->visitado = 0;
     v->cor = -1;
@@ -73,15 +69,25 @@ grafo *le_grafo(FILE *f) {
         char *p = strchr(linha, '\n');
         if (p) *p = '\0';
 
-        char v1[1023], v2[1023];
+        char tmp1[50], tmp2[50];
         int peso;
 
-        if (sscanf(linha, "%s -- %s %d", v1, v2, &peso) >= 2) {
+        char *v1;
+        v1 = (char *)malloc(strlen(tmp1) + 1);
+        char *v2;
+        v2 = (char *)malloc(strlen(tmp1) + 1);
+       
+        if (sscanf(linha, "%s -- %s %d", tmp1, tmp2, &peso) >= 2) {
+            strcpy(v1, tmp1);
+            strcpy(v2, tmp2);
             vertice *vert1 = adiciona_vertice(g, v1);
             vertice *vert2 = adiciona_vertice(g, v2);
+            free(v1);
+            free(v2);
             adiciona_aresta(g, vert1, vert2, peso);
         } else if (strlen(linha) > 0 && g->nome == NULL) {
-            g->nome = strdup(linha);
+            g->nome = (char *)malloc(strlen(linha) + 1);
+            strcpy(g->nome, linha);
         } else if (strlen(linha) > 0) {
             adiciona_vertice(g, linha);
         }
