@@ -4,8 +4,46 @@
 #include <ctype.h>
 #include "grafo.h"
 
-// -------------------------------
-// Funções utilitárias
+//------------------------------------------------------------------------------
+// Máximo de caracteres em uma linha da entrada de dados.
+
+#define MAX_LINHA 2047
+#define BUFFER_SIZE 50
+#define MAX_VERTICES 1000
+
+//------------------------------------------------------------------------------
+// Estrutura de dados para representar os vizinhos de um vertices.
+
+typedef struct vizinho {
+    struct vertice *v;
+    struct vizinho *proximo;
+    int peso;
+} vizinho;
+
+//------------------------------------------------------------------------------
+// Estrutura de dados para representar um vértice de um grafo.
+
+typedef struct vertice {
+    char *nome;
+    vizinho *vizinhos;
+    struct vertice *proximo;
+    int visitado;
+    int cor;
+    int discovery, low, parent;
+} vertice;
+
+//------------------------------------------------------------------------------
+// Estrutura de dados para representar um grafo.
+
+struct grafo {
+    char *nome;
+    vertice *vertices;
+    int n_vertices;
+    int n_arestas;
+};
+
+//------------------------------------------------------------------------------
+// Função utilitária para verificar se o vertice já existe.
 
 static vertice *busca_vertice(grafo *g, const char *nome) {
     for (vertice *v = g->vertices; v != NULL; v = v->proximo) {   
@@ -16,6 +54,9 @@ static vertice *busca_vertice(grafo *g, const char *nome) {
     }
     return NULL;
 }
+
+//------------------------------------------------------------------------------
+// Funçãos utilitária para adicionar um vértice no grafo.
 
 static vertice *adiciona_vertice(grafo *g, const char *nome) {
     vertice *v = busca_vertice(g, nome);
@@ -36,6 +77,9 @@ static vertice *adiciona_vertice(grafo *g, const char *nome) {
     return v;
 }
 
+//------------------------------------------------------------------------------
+// Funçãos utilitária para adicionar uma aresta no grafo.
+
 static void adiciona_aresta(grafo *g, vertice *v1, vertice *v2, int peso) {
     vizinho *n1 = malloc(sizeof(vizinho));
     n1->v = v2;
@@ -52,8 +96,8 @@ static void adiciona_aresta(grafo *g, vertice *v1, vertice *v2, int peso) {
     g->n_arestas++;
 }
 
-// -------------------------------
-// leitura
+//------------------------------------------------------------------------------
+// leitura do grafo.
 
 grafo *le_grafo(FILE *f) {
     char linha[MAX_LINHA];
@@ -69,21 +113,19 @@ grafo *le_grafo(FILE *f) {
         char *p = strchr(linha, '\n');
         if (p) *p = '\0';
 
-        char tmp1[50], tmp2[50];
-        int peso;
+        char tmp1[BUFFER_SIZE], tmp2[BUFFER_SIZE];
+        int peso = 1;
 
         char *v1;
-        v1 = (char *)malloc(strlen(tmp1) + 1);
+        v1 = (char *)malloc(BUFFER_SIZE);
         char *v2;
-        v2 = (char *)malloc(strlen(tmp1) + 1);
+        v2 = (char *)malloc(BUFFER_SIZE);
        
         if (sscanf(linha, "%s -- %s %d", tmp1, tmp2, &peso) >= 2) {
             strcpy(v1, tmp1);
             strcpy(v2, tmp2);
             vertice *vert1 = adiciona_vertice(g, v1);
             vertice *vert2 = adiciona_vertice(g, v2);
-            free(v1);
-            free(v2);
             adiciona_aresta(g, vert1, vert2, peso);
         } else if (strlen(linha) > 0 && g->nome == NULL) {
             g->nome = (char *)malloc(strlen(linha) + 1);
@@ -91,9 +133,14 @@ grafo *le_grafo(FILE *f) {
         } else if (strlen(linha) > 0) {
             adiciona_vertice(g, linha);
         }
+        free(v1);
+        free(v2);
     }
     return g;
 }
+
+//------------------------------------------------------------------------------
+// Libera toda a memória alocada para o grafo.
 
 unsigned int destroi_grafo(grafo *g) {
     if (!g) return 0;
@@ -113,17 +160,29 @@ unsigned int destroi_grafo(grafo *g) {
     return 1;
 }
 
+//------------------------------------------------------------------------------
+// Retorna o nome do grafo.
+
 char *nome(grafo *g) {
     return g->nome;
 }
+
+//------------------------------------------------------------------------------
+// Retorna o número de vértices do grafo.
 
 unsigned int n_vertices(grafo *g) {
     return g->n_vertices;
 }
 
+//------------------------------------------------------------------------------
+// Retorna o número de arestas do grafo.
+
 unsigned int n_arestas(grafo *g) {
     return g->n_arestas;
 }
+
+//------------------------------------------------------------------------------
+// Funçãos utilitária para colorir um grafo.
 
 static void dfs_componentes(vertice *v, int cor) {
     v->visitado = 1;
@@ -132,6 +191,9 @@ static void dfs_componentes(vertice *v, int cor) {
         if (!vz->v->visitado)
             dfs_componentes(vz->v, cor);
 }
+
+//------------------------------------------------------------------------------
+// Retorna a quantidade de componentes do grafo.
 
 unsigned int n_componentes(grafo *g) {
     int cor = 0;
@@ -145,6 +207,9 @@ unsigned int n_componentes(grafo *g) {
     }
     return cor;
 }
+
+//------------------------------------------------------------------------------
+// Retorna 1 se o grafo for bipartido e 0 caso contrário.
 
 unsigned int bipartido(grafo *g) {
     for (vertice *v = g->vertices; v; v = v->proximo) {
@@ -176,127 +241,278 @@ unsigned int bipartido(grafo *g) {
     return 1;
 }
 
-static int bfs_max_dist(vertice *inicio) {
-    vertice *queue[2048];
-    int dist[2048];
-    int front = 0, back = 0;
-    int index = 0;
-    for (vertice *v = inicio; v; v = v->proximo) {
-        v->visitado = 0;
-        dist[index++] = 0;
-    }
+#define INF 1000000000
 
-    inicio->visitado = 1;
-    queue[back++] = inicio;
-    dist[0] = 0;
-
-    int maxd = 0;
-    while (front < back) {
-        vertice *u = queue[front++];
-        for (vizinho *vz = u->vizinhos; vz; vz = vz->proximo) {
-            if (!vz->v->visitado) {
-                vz->v->visitado = 1;
-                dist[back] = dist[front - 1] + 1;
-                if (dist[back] > maxd) maxd = dist[back];
-                queue[back++] = vz->v;
-            }
-        }
-    }
-    return maxd;
-}
+static void dijkstra(vertice *start, vertice **vet_verts, int n, int *distancias);
+static int compara_ints(const void *a, const void *b);
 
 char *diametros(grafo *g) {
-    int componentes = n_componentes(g);
-    int *diametros = calloc(componentes, sizeof(int));
-    for (vertice *v = g->vertices; v; v = v->proximo) v->visitado = 0;
+    if (!g || g->n_vertices == 0) return strdup("");
 
-    for (vertice *v = g->vertices; v; v = v->proximo) {
-        if (!v->visitado) {
-            int d = bfs_max_dist(v);
-            if (d > diametros[v->cor]) diametros[v->cor] = d;
+    int n = g->n_vertices;
+    vertice *v = g->vertices;
+
+    vertice **vet_verts = malloc(sizeof(vertice*) * n);
+    int idx = 0;
+    for (vertice *cur = v; cur != NULL; cur = cur->proximo) {
+        vet_verts[idx++] = cur;
+        cur->visitado = 0;
+    }
+
+    int *diametros_componentes = malloc(sizeof(int) * n);
+    int n_componentes = 0;
+
+    for (int i = 0; i < n; i++) {
+        if (vet_verts[i]->visitado) continue;
+
+        vertice **fila = malloc(sizeof(vertice*) * n);
+        int inicio = 0, fim = 0;
+        fila[fim++] = vet_verts[i];
+        vet_verts[i]->visitado = 1;
+
+        while (inicio < fim) {
+            vertice *u = fila[inicio++];
+            for (vizinho *viz = u->vizinhos; viz != NULL; viz = viz->proximo) {
+                if (!viz->v->visitado) {
+                    viz->v->visitado = 1;
+                    fila[fim++] = viz->v;
+                }
+            }
         }
+
+        int *distancias = malloc(sizeof(int) * n);
+
+        dijkstra(vet_verts[i], vet_verts, n, distancias);
+
+        int max_dist = -1;
+        vertice *farthest = NULL;
+        for (int k = 0; k < n; k++) {
+            if (vet_verts[k]->visitado && distancias[k] != INF) {
+                if (distancias[k] > max_dist) {
+                    max_dist = distancias[k];
+                    farthest = vet_verts[k];
+                }
+            }
+        }
+
+        for (int k = 0; k < n; k++) distancias[k] = INF;
+        dijkstra(farthest, vet_verts, n, distancias);
+
+        int diametro = -1;
+        for (int k = 0; k < n; k++) {
+            if (vet_verts[k]->visitado && distancias[k] != INF) {
+                if (distancias[k] > diametro) diametro = distancias[k];
+            }
+        }
+
+        diametros_componentes[n_componentes++] = diametro;
+
+        free(distancias);
+        free(fila);
     }
 
-    char *res = malloc(componentes * 12);
+    free(vet_verts);
+
+    qsort(diametros_componentes, n_componentes, sizeof(int), compara_ints);
+
+    int size_str = n_componentes * 12;
+    char *res = malloc(size_str);
     res[0] = '\0';
-    for (int i = 0; i < componentes; i++) {
-        char buf[12];
-        sprintf(buf, "%d", diametros[i]);
-        strcat(res, buf);
-        if (i < componentes - 1) strcat(res, " ");
+
+    for (int i = 0; i < n_componentes; i++) {
+        char buffer[12];
+        sprintf(buffer, "%d", diametros_componentes[i]);
+        strcat(res, buffer);
+        if (i < n_componentes - 1) strcat(res, " ");
     }
-    free(diametros);
+
+    free(diametros_componentes);
     return res;
 }
 
-static void dfs_corte(vertice *u, int *tempo, char ***cut_vertices, int *count, char ***cut_edges, int *ecount) {
+static int compara_ints(const void *a, const void *b) {
+    int ia = *(const int*)a;
+    int ib = *(const int*)b;
+    if (ia < ib) return -1;
+    else if (ia > ib) return 1;
+    else return 0;
+}
+
+static int indice_de(vertice *vert, int n, vertice **vet_verts) {
+    for (int i = 0; i < n; i++) {
+        if (vet_verts[i] == vert) return i;
+    }
+    return -1;
+}
+
+static void dijkstra(vertice *start, vertice **vet_verts, int n, int *distancias) {
+    for (int i = 0; i < n; i++) distancias[i] = INF;
+
+    distancias[indice_de(start,n,vet_verts)] = 0;
+    int *visitado = calloc(n, sizeof(int));
+
+    for (int count = 0; count < n; count++) {
+        int u = -1;
+        int min_dist = INF;
+        for (int i = 0; i < n; i++) {
+            if (!visitado[i] && distancias[i] < min_dist) {
+                min_dist = distancias[i];
+                u = i;
+            }
+        }
+
+        if (u == -1) break;
+
+        visitado[u] = 1;
+
+        vertice *vu = vet_verts[u];
+        for (vizinho *viz = vu->vizinhos; viz != NULL; viz = viz->proximo) {
+            int v_idx = indice_de(viz->v,n,vet_verts);
+            if (v_idx != -1 && !visitado[v_idx]) {
+                int ndist = distancias[u] + viz->peso;
+                if (ndist < distancias[v_idx]) {
+                    distancias[v_idx] = ndist;
+                }
+            }
+        }
+    }
+
+    free(visitado);
+}
+
+// --- Vertices de corte ---
+
+static void dfs_corte(vertice *u, int *tempo, char **cut_vertices, int *count) {
     u->visitado = 1;
     u->discovery = u->low = ++(*tempo);
     int filhos = 0;
+
     for (vizinho *vz = u->vizinhos; vz; vz = vz->proximo) {
         vertice *v = vz->v;
         if (!v->visitado) {
             filhos++;
             v->parent = u;
-            dfs_corte(v, tempo, cut_vertices, count, cut_edges, ecount);
+            dfs_corte(v, tempo, cut_vertices, count);
+
             u->low = (u->low < v->low) ? u->low : v->low;
-            if ((u->parent == -1 && filhos > 1) || (u->parent != -1 && v->low >= u->discovery)) {
-                (*cut_vertices)[(*count)++] = u->nome;
+
+            if ((u->parent == -1 && filhos > 1) ||
+                (u->parent != -1 && v->low >= u->discovery)) {
+                cut_vertices[(*count)++] = u->nome;
             }
-            if (v->low > u->discovery) {
-                (*cut_edges)[(*ecount)++] = strdup(u->nome);
-                (*cut_edges)[(*ecount)++] = strdup(v->nome);
-            }
-        } else if (v != u->parent) {
+        } else if (u->parent != v) {
             u->low = (u->low < v->discovery) ? u->low : v->discovery;
         }
     }
 }
 
 char *vertices_corte(grafo *g) {
+    char **cut_vertices = malloc(sizeof(char *) * g->n_vertices);
+    int count = 0, tempo = 0;
+
     for (vertice *v = g->vertices; v; v = v->proximo) {
         v->visitado = 0;
-        v->discovery = v->low = 0;
         v->parent = -1;
     }
-    char **cut = malloc(g->n_vertices * sizeof(char *));
-    int count = 0, tempo = 0;
+
     for (vertice *v = g->vertices; v; v = v->proximo) {
-        if (!v->visitado) dfs_corte(v, &tempo, &cut, &count, NULL, NULL);
+        if (!v->visitado) {
+            dfs_corte(v, &tempo, cut_vertices, &count);
+        }
     }
-    qsort(cut, count, sizeof(char *), (int (*)(const void *, const void *))strcmp);
-    char *res = malloc(2048); res[0] = '\0';
+
+    // Ordena os nomes
+    for (int i = 0; i < count - 1; i++) {
+        for (int j = i + 1; j < count; j++) {
+            if (strcmp(cut_vertices[i], cut_vertices[j]) > 0) {
+                char *tmp = cut_vertices[i];
+                cut_vertices[i] = cut_vertices[j];
+                cut_vertices[j] = tmp;
+            }
+        }
+    }
+
+    char *res = malloc(4096);
+    res[0] = '\0';
     for (int i = 0; i < count; i++) {
-        strcat(res, cut[i]);
-        if (i < count - 1) strcat(res, " ");
+        strcat(res, cut_vertices[i]);
+        strcat(res, " ");
     }
-    free(cut);
+    if (strlen(res) > 0) res[strlen(res) - 1] = '\0';
+    free(cut_vertices);
     return res;
 }
 
-char *arestas_corte(grafo *g) {
-    for (vertice *v = g->vertices; v; v = v->proximo) {
-        v->visitado = 0;
-        v->discovery = v->low = 0;
-        v->parent = -1;
-    }
-    char **edges = malloc(2 * g->n_arestas * sizeof(char *));
-    int count = 0, tempo = 0;
-    for (vertice *v = g->vertices; v; v = v->proximo) {
-        if (!v->visitado) dfs_corte(v, &tempo, NULL, NULL, &edges, &count);
-    }
-    char *res = malloc(2048); res[0] = '\0';
-    for (int i = 0; i < count; i += 2) {
-        if (strcmp(edges[i], edges[i + 1]) > 0) {
-            char *tmp = edges[i]; edges[i] = edges[i + 1]; edges[i + 1] = tmp;
+// --- Arestas de corte ---
+
+static void dfs_aresta_corte(vertice *u, int *tempo, char **cut_edges, int *ecount) {
+    u->visitado = 1;
+    u->discovery = u->low = ++(*tempo);
+
+    for (vizinho *vz = u->vizinhos; vz; vz = vz->proximo) {
+        vertice *v = vz->v;
+        if (!v->visitado) {
+            v->parent = u;
+            dfs_aresta_corte(v, tempo, cut_edges, ecount);
+            u->low = (u->low < v->low) ? u->low : v->low;
+
+            if (v->low > u->discovery) {
+                if (strcmp(u->nome, v->nome) < 0) {
+                    cut_edges[(*ecount)++] = u->nome;
+                    cut_edges[(*ecount)++] = v->nome;
+                } else {
+                    cut_edges[(*ecount)++] = v->nome;
+                    cut_edges[(*ecount)++] = u->nome;
+                }
+            }
+        } else if (u->parent != v) {
+            u->low = (u->low < v->discovery) ? u->low : v->discovery;
         }
     }
-    qsort(edges, count / 2, 2 * sizeof(char *), (int (*)(const void *, const void *))strcmp);
-    for (int i = 0; i < count; i++) {
-        strcat(res, edges[i]);
-        if (i < count - 1) strcat(res, " ");
-        free(edges[i]);
+}
+
+char *arestas_corte(grafo *g) {
+    char **cut_edges = malloc(sizeof(char *) * 2 * g->n_arestas);
+    int tempo = 0, ecount = 0;
+
+    for (vertice *v = g->vertices; v; v = v->proximo) {
+        v->visitado = 0;
+        v->parent = -1;
     }
-    free(edges);
+
+    for (vertice *v = g->vertices; v; v = v->proximo) {
+        if (!v->visitado) {
+            dfs_aresta_corte(v, &tempo, cut_edges, &ecount);
+        }
+    }
+
+    // Combina pares e ordena
+    int npairs = ecount / 2;
+    char **pares = malloc(sizeof(char *) * npairs);
+    for (int i = 0; i < npairs; i++) {
+        char *par = malloc(strlen(cut_edges[2 * i]) + strlen(cut_edges[2 * i + 1]) + 2);
+        sprintf(par, "%s %s", cut_edges[2 * i], cut_edges[2 * i + 1]);
+        pares[i] = par;
+    }
+
+    for (int i = 0; i < npairs - 1; i++) {
+        for (int j = i + 1; j < npairs; j++) {
+            if (strcmp(pares[i], pares[j]) > 0) {
+                char *tmp = pares[i]; pares[i] = pares[j]; pares[j] = tmp;
+            }
+        }
+    }
+
+    char *res = malloc(4096);
+    res[0] = '\0';
+    for (int i = 0; i < npairs; i++) {
+        strcat(res, pares[i]);
+        strcat(res, " ");
+        free(pares[i]);
+    }
+    if (strlen(res) > 0) res[strlen(res) - 1] = '\0';
+
+    free(pares);
+    free(cut_edges);
     return res;
 }
